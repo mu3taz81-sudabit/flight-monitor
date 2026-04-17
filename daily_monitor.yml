@@ -1,0 +1,39 @@
+name: Daily Flight Price Monitor
+
+on:
+  schedule:
+    - cron: "0 7 * * *"   # runs every day at 07:00 UTC (08:00 Irish time)
+  workflow_dispatch:        # lets you trigger it manually from GitHub UI
+
+jobs:
+  check-prices:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Restore cached prices
+        uses: actions/cache@v4
+        with:
+          path: last_prices.json
+          key: flight-prices-${{ runner.os }}
+          restore-keys: flight-prices-
+
+      - name: Run flight monitor
+        env:
+          GMAIL_USER:     ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASS: ${{ secrets.GMAIL_APP_PASS }}
+        run: python flight_monitor.py
+
+      - name: Save updated prices cache
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: last_prices.json
+          key: flight-prices-${{ runner.os }}-${{ github.run_id }}
